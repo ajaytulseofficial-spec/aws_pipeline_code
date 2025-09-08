@@ -1,0 +1,56 @@
+{
+  "Comment": "Glue Job + Crawler Orchestration with Failure Lambda",
+  "StartAt": "StartGlueJob",
+  "States": {
+    "StartGlueJob": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Parameters": {
+        "JobName": "ajay_new",
+        "Arguments": {
+          "--bucket.$": "$.bucket",
+          "--key.$": "$.key"
+        }
+      },
+      "Next": "StartCrawler",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "FailureLambda"
+        }
+      ]
+    },
+    "StartCrawler": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:glue:startCrawler",
+      "Parameters": {
+        "Name": "ajay_crawler"
+      },
+      "Next": "PipelineSuccess",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "FailureLambda"
+        }
+      ]
+    },
+    "PipelineSuccess": {
+      "Type": "Succeed"
+    },
+    "FailureLambda": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:ap-south-1:960631463855:function:FailureLambda",
+        "Payload": {
+          "ErrorInfo.$": "$"
+        }
+      },
+      "End": true
+    }
+  }
+}
